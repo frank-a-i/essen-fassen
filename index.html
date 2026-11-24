@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Essen fassen</title>
+<style>
+  :root{
+    --bg:#faf6f0; --card:#ffffff; --ink:#26221c; --muted:#8a8175;
+    --accent:#e8590c; --accent-soft:#ffe8d6; --chip:#f1ece4; --green:#2f9e44; --radius:18px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:var(--bg); color:var(--ink); min-height:100vh;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  header{width:100%; max-width:640px; padding:28px 20px 8px; text-align:center}
+  h1{font-size:28px; margin:0; letter-spacing:-.5px}
+  h1 span{color:var(--accent)}
+  .subtitle{color:var(--muted); font-size:14px; margin:6px 0 0}
+  main{width:100%; max-width:640px; padding:12px 20px 48px}
+
+  .filters{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0}
+  .chip{
+    border:none; background:var(--chip); color:var(--ink);
+    padding:8px 14px; border-radius:999px; font-size:14px; cursor:pointer;
+    transition:all .15s ease; font-family:inherit;
+  }
+  .chip:hover{background:#e7e0d4}
+  .chip.active{background:var(--ink); color:#fff}
+  .chip.quick.active{background:var(--green); color:#fff}
+
+  .controls-row{display:flex; gap:8px; align-items:center; margin-bottom:16px}
+  select{
+    flex:1; font-family:inherit; font-size:14px; padding:10px 12px;
+    border-radius:12px; border:1px solid #ddd5c7; background:var(--card); color:var(--ink);
+  }
+  .clear-btn{
+    border:1px solid #ddd5c7; background:var(--card); color:var(--muted);
+    padding:10px 14px; border-radius:12px; font-size:13px; cursor:pointer; font-family:inherit;
+  }
+  .clear-btn:hover{color:var(--ink)}
+
+  .card{
+    background:var(--card); border-radius:var(--radius); padding:32px 24px;
+    text-align:center; box-shadow:0 6px 24px rgba(38,34,28,.08);
+    border:1px solid #efe8dc; position:relative; min-height:220px;
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+  }
+  .card.rolling .meal-name{opacity:.35}
+  .meal-emoji{font-size:52px; line-height:1; margin-bottom:12px}
+  .meal-name{font-size:30px; font-weight:800; letter-spacing:-.5px; margin:0 0 6px; transition:opacity .08s}
+  .meal-desc{color:var(--muted); font-size:14px; margin:0 0 14px; max-width:420px}
+  .meal-meta{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+  .tag{
+    background:var(--accent-soft); color:var(--accent); font-size:12px; font-weight:600;
+    padding:4px 10px; border-radius:999px;
+  }
+  .tag.time{background:#e5f6e9; color:var(--green)}
+  .empty-hint{color:var(--muted); font-size:15px; text-align:center; max-width:400px}
+
+  .actions{display:flex; gap:10px; justify-content:center; margin-top:18px; flex-wrap:wrap}
+  .btn{
+    border:none; border-radius:14px; padding:14px 28px; font-size:16px; font-weight:700;
+    cursor:pointer; font-family:inherit; transition:transform .1s ease, box-shadow .1s ease;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--accent); color:#fff; box-shadow:0 4px 14px rgba(232,89,12,.35)}
+  .btn-primary:hover{background:#d94d08}
+  .btn-secondary{background:var(--chip); color:var(--ink)}
+  .btn-secondary:hover{background:#e7e0d4}
+
+  .card-actions{display:flex; gap:6px; justify-content:center; margin-top:16px}
+  .link-btn{
+    background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer;
+    font-family:inherit; padding:6px 10px; border-radius:8px;
+  }
+  .link-btn:hover{background:var(--chip); color:var(--ink)}
+
+  .lists{display:flex; gap:10px; justify-content:center; margin-top:28px; flex-wrap:wrap}
+  .list-box{flex:1; min-width:200px; background:var(--card); border:1px solid #efe8dc; border-radius:14px; padding:14px 16px}
+  .list-box h3{margin:0 0 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+  .list-box ul{margin:0; padding:0; list-style:none}
+  .list-box li{font-size:14px; padding:5px 0; display:flex; justify-content:space-between; align-items:center; gap:6px}
+  .list-box li .del{cursor:pointer; color:var(--muted); font-size:12px; border:none; background:none; font-family:inherit}
+  .list-box li .del:hover{color:var(--accent)}
+  .list-empty{color:var(--muted); font-size:13px; font-style:italic}
+
+  footer{color:var(--muted); font-size:12px; padding:0 20px 32px; text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Essen <span>fassen</span></h1>
+  <p class="subtitle">Keine Ahnung, was es geben soll? Zieh dir einen Vorschlag.</p>
+</header>
+
+<main>
+  <div class="filters" id="foodFilters">
+    <button class="chip active" data-food="all">Alles</button>
+    <button class="chip" data-food="vegi">Vegetarisch</button>
+    <button class="chip" data-food="vegan">Vegan</button>
+    <button class="chip" data-food="meat">Fleisch</button>
+    <button class="chip" data-food="fish">Fisch</button>
+  </div>
+
+  <div class="filters" style="margin-top:0">
+    <button class="chip quick" id="quickToggle">⚡ Schnell (unter 30 Min)</button>
+    <button class="chip quick" id="ovenToggle">🔥 Nur ohne Ofen</button>
+  </div>
+
+  <div class="controls-row">
+    <select id="cuisineSelect">
+      <option value="all">Alle Küchen</option>
+      <option value="deutsch">Deutsch &amp; Hausmannskost</option>
+      <option value="italienisch">Italienisch &amp; Mediterran</option>
+      <option value="asiatisch">Asiatisch</option>
+      <option value="orientalisch">Orientalisch</option>
+      <option value="mexikanisch">Mexikanisch</option>
+      <option value="amerikanisch">Amerikanisch</option>
+      <option value="sonstige">Sonstige</option>
+    </select>
+    <button class="clear-btn" id="resetExcluded" title="Ausgeschlossene Gerichte zurückholen">↩︎ Ausschlüsse zurücksetzen (<span id="excludedCount">0</span>)</button>
+  </div>
+
+  <section class="card" id="card">
+    <div class="empty-hint" id="emptyHint">
+      Wähle oben Filter und drück auf <strong>Vorschlagen</strong>.<br>
+      Gerichte, die dir nicht schmecken, kannst du für immer ausschließen.
+    </div>
+    <div id="mealContent" style="display:none">
+      <div class="meal-emoji" id="mealEmoji"></div>
+      <h2 class="meal-name" id="mealName"></h2>
+      <p class="meal-desc" id="mealDesc"></p>
+      <div class="meal-meta" id="mealTags"></div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="spinBtn">🍽 Vorschlagen</button>
+    <button class="btn btn-secondary" id="againBtn" style="display:none">Nochmal würfeln</button>
+  </div>
+
+  <div class="card-actions" id="cardActions" style="display:none">
+    <button class="link-btn" id="saveBtn">⭐ Merken</button>
+    <button class="link-btn" id="excludeBtn">🚫 Nie wieder vorschlagen</button>
+  </div>
+
+  <div class="lists">
+    <div class="list-box">
+      <h3>Gemerkt (<span id="favCount">0</span>)</h3>
+      <ul id="favList"></ul>
+    </div>
+    <div class="list-box">
+      <h3>Ausgeschlossen (<span id="excludedListCount">0</span>)</h3>
+      <ul id="excludedList"></ul>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Läuft komplett offline im Browser. Gemerkte und ausgeschlossene Gerichte werden lokal gespeichert.
+</footer>
+
+<script>
+"use strict";
+
+const MEALS = [
+  {n:"Spaghetti Carbonara", e:"🍝", d:"Speck, Eier, Pecorino, Pfeffer. Klassiker, der immer geht.", f:"meat", c:"italienisch", t:25, oven:false},
+  {n:"Pasta mit Tomatensauce", e:"🍅", d:"Knoblauch, Dosentomaten, Basilikum, Parmesan.", f:"vegi", c:"italienisch", t:20, oven:false},
+  {n:"Pizza Margherita", e:"🍕", d:"Fertigteig, Tomatensauce, Mozzarella, Basilikum.", f:"vegi", c:"italienisch", t:35, oven:true},
+  {n:"Lasagne", e:"🍲", d:"Bolognese, Bechamel, Nudelplatten, Käse. Aufwand, aber Wochenende lohnt.", f:"meat", c:"italienisch", t:90, oven:true},
+  {n:"Risotto mit Pilzen", e:"🍄", d:"Arborio, Pilze, Parmesan, ein Glas Weißwein.", f:"vegi", c:"italienisch", t:40, oven:false},
+  {n:"Gnocchi in Salbeibutter", e:"🥔", d:"Fertiggnocchi, Salbei, Butter, Parmesan.", f:"vegi", c:"italienisch", t:15, oven:false},
+  {n:"Gnocchi-Pfanne mit Gemüse", e:"🥘", d:"Gnocchi, Paprika, Zucchini, Feta, Honig-Senf-Sauce.", f:"vegi", c:"sonstige", t:25, oven:false},
+  {n:"Tortellini in Rahmsauce", e:"🥣", d:"Tortellini, Schinken, Sahne, Erbsen, Parmesan.", f:"meat", c:"italienisch", t:20, oven:false},
+  {n:"Ofengemüse mit Feta", e:"🍠", d:"Paprika, Zucchini, Süßkartoffel, Feta, Honig, Thymian.", f:"vegi", c:"sonstige", t:45, oven:true},
+  {n:"Currywurst mit Pommes", e:"🌭", d:"Bratwurst, Curryketchup, Pommes aus dem Ofen.", f:"meat", c:"deutsch", t:30, oven:true},
+  {n:"Schnitzel mit Kartoffelsalat", e:"🍖", d:"Paniertes Schnitzel, Kartoffelsalat, Zitrone.", f:"meat", c:"deutsch", t:40, oven:false},
+  {n:"Spätzle mit Käse", e:"🧀", d:"Käsespätzle mit Röstzwiebeln. Sehr deftig.", f:"vegi", c:"deutsch", t:25, oven:false},
+  {n:"Käsespätzle-Auflauf", e:"🥧", d:"Spätzle, Bergkäse, Sahne, Zwiebeln aus dem Ofen.", f:"vegi", c:"deutsch", t:50, oven:true},
+  {n:"Kartoffelpuffer mit Apfelmus", e:"🥞", d:"Geriebene Kartoffeln, Zwiebel, Ei. Schwaben-Klassiker.", f:"vegi", c:"deutsch", t:35, oven:false},
+  {n:"Bolognese", e:"🍝", d:"Nudeln mit Hackfleischsauce, Karotte, Sellerie, Tomaten.", f:"meat", c:"italienisch", t:45, oven:false},
+  {n:"Chili con Carne", e:"🌶", d:"Hack, Kidneybohnen, Mais, Tomaten, Reis dazu.", f:"meat", c:"sonstige", t:40, oven:false},
+  {n:"Chili sin Carne", e:"🫘", d:"Bohnen, Mais, Tomaten, Paprika. Vollwertig scharf.", f:"vegan", c:"sonstige", t:35, oven:false},
+  {n:"Reispfanne mit Gemüse", e:"🍛", d:"Reis, Ei, Gemüsereste, Sojasauce. Kühlschänkenrechtfertigung.", f:"vegi", c:"asiatisch", t:25, oven:false},
+  {n:"Gemüse-Curry mit Kokosmilch", e:"🥥", d:"Kokosmilch, Currypaste, Paprika, Brokkoli, Reis.", f:"vegan", c:"asiatisch", t:30, oven:false},
+  {n:"Hähnchen-Curry", e:"🍗", d:"Hähnchenbrust, Kokosmilch, Currypaste, Banane, Reis.", f:"meat", c:"asiatisch", t:35, oven:false},
+  {n:"Linsen-Curry (Dal)", e:"🫘", d:"Rote Linsen, Kokosmilch, Kurkuma, Spinat, Naan dazu.", f:"vegan", c:"asiatisch", t:30, oven:false},
+  {n:"Pad Thai", e:"🍜", d:"Reisnudeln, Ei, Erdnüsse, Tamarinde, Frühlingszwiebeln.", f:"vegi", c:"asiatisch", t:30, oven:false},
+  {n:"Gebratene Nudeln mit Tofu", e:"🥡", d:"Mie-Nudeln, Tofu, Mungosprossen, Sojasauce.", f:"vegan", c:"asiatisch", t:25, oven:false},
+  {n:"Sushi rollen", e:"🍣", d:"Reis, Nori, Lachs oder Gurke, Avocado. Selbstgemacht.", f:"fish", c:"asiatisch", t:60, oven:false},
+  {n:"Ramen", e:"🍥", d:"Brühe, Nudeln, Ei, Frühlingszwiebel, Mais. Soulfood.", f:"vegi", c:"asiatisch", t:40, oven:false},
+  {n:"Frühlingsrollen", e:"🥟", d:"Gemüse, Glasnudeln, Süß-Sauer-Sauce, im Ofen frittiert.", f:"vegan", c:"asiatisch", t:45, oven:true},
+  {n:"Buddha Bowl", e:"🥗", d:"Quinoa, Kichererbsen, Avocado, Rote Beete, Dressing.", f:"vegan", c:"sonstige", t:30, oven:false},
+  {n:"Burger", e:"🍔", d:"Patties, Cheese, Brioche-Buns, Zwiebeln, Ketchup.", f:"meat", c:"amerikanisch", t:35, oven:false},
+  {n:"Vegetarische Burger", e:"🌱", d:"Bohnen- oder Haferbratlinge, Salat, Sauce.", f:"vegan", c:"amerikanisch", t:40, oven:false},
+  {n:"Überbackene Nachos", e:"🌮", d:"Chips, Hack oder Bohnen, Käse, Jalapeños, Sour Cream.", f:"meat", c:"mexikanisch", t:25, oven:true},
+  {n:"Tacos", e:"🫔", d:"Hackfleisch oder Bohnen, Taco-Shells, Salat, Käse, Salsa.", f:"meat", c:"mexikanisch", t:30, oven:false},
+  {n:"Burrito-Bowl", e:"🥙", d:"Reis, Bohnen, Mais, Salat, Guacamole, Chicken.", f:"meat", c:"mexikanisch", t:30, oven:false},
+  {n:"Quesadillas", e:"🧆", d:"Tortillas, Käse, Hähnchen oder Bohnen, Dip dazu.", f:"vegi", c:"mexikanisch", t:20, oven:false},
+  {n:"Falafel mit Fladenbrot", e:"🧆", d:"Falafel, Hummus, Salat, Tzatziki, Brot.", f:"vegan", c:"orientalisch", t:40, oven:false},
+  {n:"Flammkuchen", e:"🔥", d:"Dünn, Crème fraîche, Speck, Zwiebeln. Schnell aus dem Ofen.", f:"meat", c:"deutsch", t:30, oven:true},
+  {n:"Hackbraten mit Rosmarinkartoffeln", e:"🥩", d:"Hack, Ei, Semmelbrösel, Rosmarin, Kartoffeln.", f:"meat", c:"deutsch", t:60, oven:true},
+  {n:"Schweinefilet im Blätterteig", e:"🥐", d:"Filet, Blätterteig, Champignons. Für Gäste.", f:"meat", c:"deutsch", t:60, oven:true},
+  {n:"Bratkartoffeln mit Spiegelei", e:"🍳", d:"Kartoffeln, Zwiebeln, Speck optional, Spiegelei.", f:"vegi", c:"deutsch", t:25, oven:false},
+  {n:"Kartoffelsuppe", e:"🥣", d:"Kartoffeln, Majoran, Würstchen oder vegetarisch.", f:"vegi", c:"deutsch", t:40, oven:false},
+  {n:"Käse-Lauch-Suppe", e:"🍲", d:"Lauch, Kartoffeln, Schmelzkäse, Hackfleisch.", f:"meat", c:"deutsch", t:35, oven:false},
+  {n:"Grillen: Würstchen und Brotzeit", e:"🍴", d:"Nürnberger, Pute, Kartoffelsalat, Weckle, Salat.", f:"meat", c:"deutsch", t:30, oven:false},
+  {n:"Pellkartoffeln mit Quark", e:"🥔", d:"Pellkartoffeln, Kräuterquark, Leinöl. Sparsam und gut.", f:"vegi", c:"deutsch", t:30, oven:false},
+  {n:"Panierter Fisch mit Pommes", e:"🐟", d:"Fischstäbchen oder frischer Fisch, Remoulade, Pommes.", f:"fish", c:"deutsch", t:30, oven:true},
+  {n:"Lachsfilet mit Ofengemüse", e:"🐠", d:"Lachs, Zucchini, Cherrytomaten, Zitrone.", f:"fish", c:"sonstige", t:35, oven:true},
+  {n:"Garnelen-Pasta", e:"🍤", d:"Spaghetti, Garnelen, Knoblauch, Chili, Zitrone.", f:"fish", c:"italienisch", t:25, oven:false},
+  {n:"Thunfisch-Salat Nizzaise", e:"🥗", d:"Thunfisch, Ei, Bohnen, Oliven, Kartoffeln.", f:"fish", c:"sonstige", t:25, oven:false},
+  {n:"Fischsuppe", e:"🍤", d:"Kabeljau, Garnelen, Sahnesud, Porree, Dill.", f:"fish", c:"sonstige", t:40, oven:false},
+  {n:"Rotweinrisotto mit Pilzen", e:"🍷", d:"Rotwein, Reis, Pilze, Bergkäse.", f:"vegi", c:"italienisch", t:45, oven:false},
+  {n:"Rührei auf Toast", e:"🍞", d:"Ei, Butter, Schnittlauch, gutes Brot. Frühstück für Abends.", f:"vegi", c:"sonstige", t:10, oven:false},
+  {n:"Ofenkäse mit Brot", e:"🫕", d:"Camembert im Ofen, Baguette, Preiselbeeren.", f:"vegi", c:"sonstige", t:20, oven:true},
+  {n:"Kichererbsen-Curry", e:"🧆", d:"Kichererbsen, Tomaten, Garam Masala, Reis.", f:"vegan", c:"orientalisch", t:30, oven:false},
+  {n:"Falafel-Bowl", e:"🥗", d:"Falafel, Bulgur, Hummus, Gurke, Minzjoghurt.", f:"vegan", c:"orientalisch", t:30, oven:false},
+  {n:"Ofenlachs mit Zitronennudeln", e:"🍋", d:"Lachs im Ofen, Nudeln, Butter, Zitrone, Petersilie.", f:"fish", c:"sonstige", t:35, oven:true},
+  {n:"Schupfnudel-Pfanne", e:"🥘", d:"Schupfnudeln, Paprika, Sauerrahm, Schnittlauch.", f:"vegi", c:"deutsch", t:20, oven:false},
+  {n:"Wok-Gemüse mit Tofu", e:"🥬", d:"Brokkoli, Paprika, Tofu, Soja-Chili-Sauce, Reis.", f:"vegan", c:"asiatisch", t:25, oven:false},
+  {n:"Sesam-Nudeln mit Gurke", e:"🥒", d:"Kalte Nudeln, Sesampaste, Sojasauce, Gurke.", f:"vegan", c:"asiatisch", t:20, oven:false},
+  {n:"Zucchini-Puffer mit Tzatziki", e:"🥒", d:"Geriebene Zucchini, Feta, Joghurtdip.", f:"vegi", c:"sonstige", t:35, oven:false},
+  {n:"Pasta Pesto mit Tomaten", e:"🌿", d:"Pesto, Nudeln, Rispentomaten, Mozzarella.", f:"vegi", c:"italienisch", t:15, oven:false},
+  {n:"Gefüllte Paprika", e:"🫑", d:"Reis-Hack-Füllung, Tomatensauce, Käse.", f:"meat", c:"deutsch", t:70, oven:true},
+  {n:"Gefüllte Champignons", e:"🍄", d:"Portobellos, Frischkäse, Kräuter, Parmesan.", f:"vegi", c:"sonstige", t:30, oven:true},
+  {n:"Raclette / Fondue", e:"🫕", d:"Käse schmelzen, alles dippen. Gesellig.", f:"vegi", c:"deutsch", t:45, oven:true},
+  {n:"Bauernsalat", e:"🥗", d:"Tomaten, Gurke, Feta, Oliven, Zwiebel, Brot.", f:"vegi", c:"orientalisch", t:15, oven:false},
+  {n:"Panierte Champignons und Kroketten", e:"🍟", d:"Champignons, Kroketten, Knoblauchdip.", f:"vegi", c:"deutsch", t:30, oven:true},
+  {n:"Schweinesteak mit Rösti", e:"🥩", d:"Schweinesteak, Rösti, Rahmsauce, Erbsen.", f:"meat", c:"deutsch", t:35, oven:true},
+  {n:"Kartoffelauflauf mit Hack", e:"🥔", d:"Kartoffeln, Hack, Sahne, Käse, Thymian.", f:"meat", c:"deutsch", t:60, oven:true},
+  {n:"Paprika-Nudel-Auflauf", e:"🫕", d:"Paprika, Nudeln, Tomatensauce, Hack oder Tofu, Käse.", f:"meat", c:"deutsch", t:50, oven:true},
+  {n:"Steak mit Ofenkartoffeln", e:"🥩", d:"Rindersteak, Ofenkartoffeln, Kräuterbutter, Salat.", f:"meat", c:"amerikanisch", t:40, oven:true},
+  {n:"Pulled Pork", e:"🍖", d:"Schweineschulter 8 Stunden low and slow, BBQ-Sauce, Cole Slaw, Burger Buns.", f:"meat", c:"amerikanisch", t:480, oven:true},
+  {n:"Fruchtige Grillspieße", e:"🍡", d:"Hähnchen oder Halloumi, Paprika, Ananas, Honig-Marinade.", f:"meat", c:"sonstige", t:35, oven:false},
+  {n:"Linsensuppe", e:"🥣", d:"Linsen, Suppengemüse, Kartoffeln, Essig, Würstchen optional.", f:"vegan", c:"deutsch", t:45, oven:false},
+  {n:"Kürbisrisotto", e:"🎃", d:"Kürbis, Reis, Salbei, Parmesan. Herbstklassiker.", f:"vegi", c:"italienisch", t:45, oven:false},
+  {n:"Döner/Pide", e:"🥙", d:"Fladenbrot, Hackfleisch oder Falafel, Salat, Tzatziki.", f:"meat", c:"orientalisch", t:35, oven:false},
+  {n:"Ofen-Polenta mit Tomaten", e:"🌽", d:"Polenta, Cherrytomaten, Oliven, Feta.", f:"vegi", c:"italienisch", t:40, oven:true},
+  {n:"Gemüsespieße aus dem Ofen", e:"🍢", d:"Zucchini, Paprika, Zwiebel, Marinade, Dip.", f:"vegan", c:"sonstige", t:35, oven:true},
+  {n:"Zwiebelkuchen", e:"🧅", d:"Zwiebeln, Speck oder Käse, Guss, Hefeteig.", f:"meat", c:"deutsch", t:70, oven:true},
+  {n:"Quiche Lorraine", e:"🥧", d:"Speck, Sahne-Ei-Guss, Mürbeteig, Salat dazu.", f:"meat", c:"sonstige", t:60, oven:true},
+  {n:"Frittata mit Restegemüse", e:"🍳", d:"Eier, Kartoffelreste, Gemüse, Käse. Resteverwertung.", f:"vegi", c:"sonstige", t:20, oven:false},
+  {n:"Baguette-Bruschetta", e:"🥖", d:"Geröstetes Brot, Tomaten, Knoblauch, Olivenöl, Basilikum.", f:"vegan", c:"italienisch", t:15, oven:false}
+];
+
+const FOOD_LABEL = { all:"Alle", vegi:"Vegetarisch", vegan:"Vegan", meat:"Fleisch", fish:"Fisch" };
+const CUISINE_LABEL = { deutsch:"Deutsch", italienisch:"Italienisch", asiatisch:"Asiatisch", orientalisch:"Orientalisch", mexikanisch:"Mexikanisch", amerikanisch:"Amerikanisch", sonstige:"Sonstige" };
+
+const store = {
+  get(key, fallback){
+    try{ const v = localStorage.getItem("essenFassen_"+key); return v ? JSON.parse(v) : fallback; }
+    catch(e){ return fallback; }
+  },
+  set(key, val){
+    try{ localStorage.setItem("essenFassen_"+key, JSON.stringify(val)); }catch(e){}
+  }
+};
+
+let state = {
+  food: "all",
+  cuisine: "all",
+  quick: store.get("quick", false),
+  oven: store.get("oven", false),
+  current: null,
+  excluded: store.get("excluded", []),
+  favorites: store.get("favorites", []),
+  rolling: false,
+  lastPicks: []
+};
+
+const $ = id => document.getElementById(id);
+
+function saveState(){
+  store.set("quick", state.quick);
+  store.set("oven", state.oven);
+  store.set("excluded", state.excluded);
+  store.set("favorites", state.favorites);
+}
+
+function pool(){
+  return MEALS.filter((m, i) => {
+    if (state.excluded.includes(i)) return false;
+    if (state.food === "vegi" && m.f !== "vegi" && m.f !== "vegan") return false;
+    if (state.food === "vegan" && m.f !== "vegan") return false;
+    if (state.food === "meat" && m.f !== "meat") return false;
+    if (state.food === "fish" && m.f !== "fish") return false;
+    if (state.cuisine !== "all" && m.c !== state.cuisine) return false;
+    if (state.quick && m.t >= 30) return false;
+    if (state.oven && m.oven) return false;
+    return true;
+  }).map(m => ({ meal: m, index: MEALS.indexOf(m) }));
+}
+
+function pick(){
+  const p = pool();
+  if (p.length === 0) return null;
+  // Prefer avoiding last 3 picks if pool is big enough
+  let candidates = p.filter(x => !state.lastPicks.includes(x.index));
+  if (candidates.length === 0) candidates = p;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function renderMeal(sel){
+  $("emptyHint").style.display = "none";
+  $("mealContent").style.display = "";
+  $("cardActions").style.display = "";
+  $("againBtn").style.display = "";
+  const m = sel.meal;
+  $("mealEmoji").textContent = m.e;
+  $("mealName").textContent = m.n;
+  $("mealDesc").textContent = m.d;
+  const tags = [];
+  tags.push('<span class="tag">' + FOOD_LABEL[m.f] + "</span>");
+  tags.push('<span class="tag">' + CUISINE_LABEL[m.c] + "</span>");
+  tags.push('<span class="tag time">' + m.t + " Min</span>");
+  if (sel.meal && state.favorites.includes(sel.index)) {
+    tags.push('<span class="tag" style="background:#fff3bf;color:#e67700">⭐ gemerkt</span>');
+  }
+  $("mealTags").innerHTML = tags.join("");
+  const favBtn = $("saveBtn");
+  favBtn.textContent = state.favorites.includes(sel.index) ? "★ Gemerkt" : "⭐ Merken";
+}
+
+function showEmptyPool(){
+  $("emptyHint").innerHTML = "Keine Gerichte passen zu dieser Kombination.<br>Lockere die Filter etwas auf.";
+  $("emptyHint").style.display = "";
+  $("mealContent").style.display = "none";
+  $("cardActions").style.display = "none";
+}
+
+function spin(){
+  if (state.rolling) return;
+  const sel = pick();
+  if (!sel){ showEmptyPool(); return; }
+  state.rolling = true;
+  $("card").classList.add("rolling");
+  $("emptyHint").style.display = "none";
+  $("mealContent").style.display = "";
+  $("cardActions").style.display = "";
+  let ticks = 0;
+  const iv = setInterval(() => {
+    const rnd = MEALS[Math.floor(Math.random() * MEALS.length)];
+    $("mealEmoji").textContent = rnd.e;
+    $("mealName").textContent = rnd.n;
+    $("mealDesc").textContent = rnd.d;
+    ticks++;
+    if (ticks > 11){
+      clearInterval(iv);
+      $("card").classList.remove("rolling");
+      state.rolling = false;
+      state.current = sel;
+      state.lastPicks.push(sel.index);
+      if (state.lastPicks.length > 3) state.lastPicks.shift();
+      renderMeal(sel);
+    }
+  }, 70);
+}
+
+function renderLists(){
+  $("excludedCount").textContent = state.excluded.length;
+  $("excludedListCount").textContent = state.excluded.length;
+  $("favCount").textContent = state.favorites.length;
+  const favList = $("favList");
+  favList.innerHTML = "";
+  if (state.favorites.length === 0){
+    favList.innerHTML = '<li class="list-empty">Noch nichts gemerkt.</li>';
+  } else {
+    state.favorites.forEach(idx => {
+      const m = MEALS[idx];
+      if (!m) return;
+      const li = document.createElement("li");
+      li.innerHTML = "<span>" + m.e + " " + m.n + '</span>';
+      const del = document.createElement("button");
+      del.className = "del"; del.textContent = "✕";
+      del.title = "Aus Favoriten entfernen";
+      del.onclick = () => {
+        state.favorites = state.favorites.filter(x => x !== idx);
+        saveState(); renderLists();
+        if (state.current && state.current.index === idx) renderMeal(state.current);
+      };
+      li.appendChild(del);
+      favList.appendChild(li);
+    });
+  }
+  const exList = $("excludedList");
+  exList.innerHTML = "";
+  if (state.excluded.length === 0){
+    exList.innerHTML = '<li class="list-empty">Nichts ausgeschlossen.</li>';
+  } else {
+    state.excluded.forEach(idx => {
+      const m = MEALS[idx];
+      if (!m) return;
+      const li = document.createElement("li");
+      li.innerHTML = "<span>" + m.e + " " + m.n + '</span>';
+      const del = document.createElement("button");
+      del.className = "del"; del.textContent = "↩︎";
+      del.title = "Wieder zulassen";
+      del.onclick = () => {
+        state.excluded = state.excluded.filter(x => x !== idx);
+        saveState(); renderLists();
+      };
+      li.appendChild(del);
+      exList.appendChild(li);
+    });
+  }
+}
+
+function updateQuickButtons(){
+  $("quickToggle").classList.toggle("active", state.quick);
+  $("ovenToggle").classList.toggle("active", state.oven);
+}
+
+// Wire up
+document.querySelectorAll("#foodFilters .chip").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll("#foodFilters .chip").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    state.food = btn.dataset.food;
+  };
+});
+
+$("cuisineSelect").onchange = e => { state.cuisine = e.target.value; };
+
+$("quickToggle").onclick = () => {
+  state.quick = !state.quick;
+  updateQuickButtons(); saveState();
+};
+$("ovenToggle").onclick = () => {
+  state.oven = !state.oven;
+  updateQuickButtons(); saveState();
+};
+
+$("resetExcluded").onclick = () => {
+  state.excluded = [];
+  saveState(); renderLists();
+};
+
+$("spinBtn").onclick = spin;
+$("againBtn").onclick = spin;
+
+$("saveBtn").onclick = () => {
+  if (!state.current) return;
+  const idx = state.current.index;
+  if (state.favorites.includes(idx)){
+    state.favorites = state.favorites.filter(x => x !== idx);
+  } else {
+    state.favorites.push(idx);
+  }
+  saveState(); renderLists(); renderMeal(state.current);
+};
+
+$("excludeBtn").onclick = () => {
+  if (!state.current) return;
+  const idx = state.current.index;
+  if (!state.excluded.includes(idx)) state.excluded.push(idx);
+  state.current = null;
+  $("mealContent").style.display = "none";
+  $("cardActions").style.display = "none";
+  $("againBtn").style.display = "none";
+  $("emptyHint").innerHTML = "Gericht ausgeschlossen. Würfel einfach nochmal.";
+  $("emptyHint").style.display = "";
+  saveState(); renderLists();
+};
+
+// Init
+updateQuickButtons();
+renderLists();
+</script>
+</body>
+</html>
